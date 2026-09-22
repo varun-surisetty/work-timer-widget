@@ -4,6 +4,41 @@ const path = require('path');
 let mainWindow;
 let tray;
 
+// ── Build a small colored square as tray icon (no external file) ──
+function makeTrayIcon() {
+  // 16×16 PNG: dark background + a small colored clock-face dot
+  // We use a raw RGBA buffer via nativeImage.createFromBuffer
+  const size   = 16;
+  const buf    = Buffer.alloc(size * size * 4);
+
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const i  = (y * size + x) * 4;
+      const cx = x - size / 2 + 0.5;
+      const cy = y - size / 2 + 0.5;
+      const r  = Math.sqrt(cx * cx + cy * cy);
+
+      if (r <= 7) {
+        // Outer circle fill — dark blue-grey
+        buf[i]   = 30;   // R
+        buf[i+1] = 30;   // G
+        buf[i+2] = 46;   // B
+        buf[i+3] = 255;  // A
+      }
+      if (r >= 6 && r <= 7.5) {
+        // Ring — bright blue to make it visible
+        buf[i]   = 0;
+        buf[i+1] = 170;
+        buf[i+2] = 255;
+        buf[i+3] = 255;
+      }
+      // Inside the ring: keep dark fill above
+    }
+  }
+
+  return nativeImage.createFromBuffer(buf, { width: size, height: size });
+}
+
 function createWindow() {
   const { width } = screen.getPrimaryDisplay().workAreaSize;
 
@@ -27,36 +62,47 @@ function createWindow() {
     },
   });
 
-  // 'screen-saver' level keeps it above fullscreen apps too
   mainWindow.setAlwaysOnTop(true, 'screen-saver');
   mainWindow.loadFile(path.join(__dirname, 'index.html'));
   mainWindow.on('closed', () => { mainWindow = null; });
+
+  // If the OS somehow minimizes the window (e.g. Win+D "show desktop"),
+  // immediately restore it so it never disappears into a taskbar slot
+  // (which would be invisible anyway since skipTaskbar is true).
+  mainWindow.on('minimize', () => {
+    mainWindow.restore();
+  });
+}
+
+function showWindow() {
+  if (!mainWindow) return;
+  mainWindow.show();
+  mainWindow.setAlwaysOnTop(true, 'screen-saver');
 }
 
 function createTray() {
-  const img = nativeImage.createEmpty();
-  tray = new Tray(img);
+  tray = new Tray(makeTrayIcon());
 
   const contextMenu = Menu.buildFromTemplate([
     { label: 'Work Timer Widget', enabled: false },
     { type: 'separator' },
     {
-      label: 'Show / Hide',
-      click: () => {
-        if (!mainWindow) return;
-        mainWindow.isVisible() ? mainWindow.hide() : mainWindow.show();
-      },
+      label: 'Show Widget',
+      click: () => showWindow(),
+    },
+    {
+      label: 'Hide Widget',
+      click: () => { if (mainWindow) mainWindow.hide(); },
     },
     { type: 'separator' },
     { label: 'Quit', click: () => app.quit() },
   ]);
 
-  tray.setToolTip('Work Timer');
+  tray.setToolTip('Work Timer — click to show');
   tray.setContextMenu(contextMenu);
-  tray.on('click', () => {
-    if (!mainWindow) return;
-    mainWindow.isVisible() ? mainWindow.hide() : mainWindow.show();
-  });
+
+  // Single click on tray icon always shows the widget
+  tray.on('click', () => showWindow());
 }
 
 app.whenReady().then(() => {
