@@ -1,0 +1,606 @@
+/* ── Reset & base ───────────────────────────────────────── */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  width: 100%;
+  height: 100%;
+}
+
+body {
+  background: transparent;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  user-select: none;
+  -webkit-app-region: no-drag;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* ── Outer card ─────────────────────────────────────────── */
+#drag-bar, #status-label, #display-wrap, #phase-bar, #timeline-wrap {
+  background: rgba(10, 10, 14, 0.92);
+}
+
+/* ── Top drag bar ───────────────────────────────────────── */
+#drag-bar {
+  display: flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 10px 10px 0 0;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  -webkit-app-region: drag;
+  cursor: grab;
+  flex-shrink: 0;
+}
+
+/* ── Compact mode (double-click title bar to toggle) ────── */
+body.compact #status-label,
+body.compact #phase-bar {
+  display: none;
+}
+
+body.compact #display-wrap {
+  padding: 4px 14px 4px;
+  flex: 0 0 auto;
+}
+
+body.compact #timeline-wrap {
+  border-radius: 0 0 10px 10px;
+}
+
+/* In compact mode the drag-bar corners become fully rounded when
+   the timeline-wrap is gone — handled by border-radius on drag-bar */
+body.compact #drag-bar {
+  border-radius: 10px 10px 0 0;
+}
+
+/* Subtle double-click hint on the drag bar title */
+#drag-label::after {
+  content: ' ·· ';
+  opacity: 0;
+  font-size: 9px;
+  transition: opacity 0.2s;
+}
+#drag-bar:hover #drag-label::after {
+  opacity: 0.3;
+}
+
+#drag-label {
+  flex: 1;
+  font-size: 11px;
+  color: rgba(255,255,255,0.45);
+  letter-spacing: 0.5px;
+}
+
+#drag-bar button {
+  -webkit-app-region: no-drag;
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.4);
+  font-size: 12px;
+  cursor: pointer;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  transition: background 0.15s, color 0.15s;
+}
+
+#drag-bar button:hover {
+  background: rgba(255,255,255,0.12);
+  color: #fff;
+}
+
+/* ── Status label ───────────────────────────────────────── */
+#status-label {
+  text-align: center;
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 5px 10px 3px;
+  color: rgba(255,255,255,0.55);
+  transition: color 0.4s;
+  flex-shrink: 0;
+}
+
+/* ── Digital display wrapper ────────────────────────────── */
+#display-wrap {
+  padding: 6px 14px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  min-height: 0;
+}
+
+/* ── Digital timer text ─────────────────────────────────── */
+#timer-display {
+  font-family: 'Courier New', 'Lucida Console', monospace;
+  font-size: clamp(28px, 8vw, 56px);
+  font-weight: 900;
+  letter-spacing: clamp(2px, 1vw, 6px);
+  line-height: 1;
+  transition: color 0.4s, text-shadow 0.4s;
+}
+
+/* Colour themes applied via body class */
+body.phase-blue #timer-display {
+  color: #00aaff;
+  text-shadow:
+    0 0 8px rgba(0, 170, 255, 0.9),
+    0 0 20px rgba(0, 170, 255, 0.5),
+    0 0 40px rgba(0, 170, 255, 0.25);
+}
+
+body.phase-red #timer-display {
+  color: #ff3b30;
+  text-shadow:
+    0 0 8px rgba(255, 59, 48, 0.9),
+    0 0 20px rgba(255, 59, 48, 0.5),
+    0 0 40px rgba(255, 59, 48, 0.25);
+}
+
+body.phase-green #timer-display {
+  color: #00e676;
+  text-shadow:
+    0 0 10px rgba(0, 230, 118, 0.95),
+    0 0 24px rgba(0, 230, 118, 0.6),
+    0 0 50px rgba(0, 230, 118, 0.3);
+  -webkit-text-stroke: 1px rgba(0, 230, 118, 0.6);
+}
+
+body.phase-idle #timer-display {
+  color: rgba(255,255,255,0.2);
+  text-shadow: none;
+}
+
+/* ── Phase bar ──────────────────────────────────────────── */
+#phase-bar {
+  padding: 3px 10px 5px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+#phase-label {
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.3);
+}
+
+body.phase-blue  #phase-label { color: rgba(0, 170, 255, 0.65); }
+body.phase-red   #phase-label { color: rgba(255, 59, 48, 0.65); }
+body.phase-green #phase-label { color: rgba(0, 230, 118, 0.75); }
+
+/* ── Blinking colon for last 10 s ───────────────────────── */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.15; }
+}
+body.urgent #timer-display {
+  animation: blink 0.6s step-end infinite;
+}
+
+/* ── Timeline wrapper ───────────────────────────────────── */
+#timeline-wrap {
+  border-top: 1px solid rgba(255,255,255,0.07);
+  border-radius: 0 0 10px 10px;
+  padding: 5px 10px 4px;
+  flex-shrink: 0;
+}
+
+/* ── Time labels above bar ──────────────────────────────── */
+#timeline-label-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 3px;
+  position: relative;
+}
+
+.tl-label {
+  font-size: 8px;
+  color: rgba(255,255,255,0.28);
+  letter-spacing: 0.4px;
+}
+
+/* 12:30 label: centred (lunch mid-point ≈ 44.4% from left) */
+#timeline-label-row .tl-label:nth-child(2) {
+  position: absolute;
+  /* (LUNCH_START - DAY_START) / DAY_TOTAL * 100 = (4*3600)/32400 ≈ 44.4% */
+  left: 44.4%;
+  transform: translateX(-50%);
+}
+
+.tl-label-right {
+  margin-left: auto;
+}
+
+/* ── The bar itself ─────────────────────────────────────── */
+#timeline-bar {
+  position: relative;
+  height: 10px;
+  border-radius: 5px;
+  display: flex;
+  background: rgba(255,255,255,0.06);
+  /* overflow visible so pointer spike and tooltip aren't clipped;
+     segments get their own border-radius via :first-child/:last-child */
+  overflow: visible;
+}
+
+/* ── Individual segments ────────────────────────────────── */
+.tl-seg {
+  height: 100%;
+  flex-shrink: 0;
+  transition: opacity 0.3s, filter 0.15s;
+  cursor: default;
+}
+
+/* Round the outermost corners of the bar via the first/last segment */
+.tl-seg:first-child { border-radius: 5px 0 0 5px; }
+.tl-seg:last-child  { border-radius: 0 5px 5px 0; }
+.tl-seg:only-child  { border-radius: 5px; }
+
+.tl-work  { background: #00aaff; opacity: 0.75; }
+.tl-break { background: #ff3b30; opacity: 0.80; }
+.tl-lunch { background: #00e676; opacity: 0.75; }
+
+/* Highlight the segment that is currently active */
+body.phase-blue  .tl-work  { opacity: 1; }
+body.phase-red   .tl-break { opacity: 1; }
+body.phase-green .tl-lunch { opacity: 1; }
+
+/* Brighten any segment on hover */
+.tl-seg:hover { filter: brightness(1.35); opacity: 1 !important; }
+
+/* ── Segment hover tooltip ───────────────────────────────── */
+#tl-tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);   /* sits above the bar */
+  background: rgba(12, 12, 18, 0.97);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 7px;
+  padding: 6px 10px;
+  pointer-events: none;
+  white-space: nowrap;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  z-index: 50;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.6);
+  transform: translateX(-50%);
+  transition: opacity 0.1s;
+}
+
+#tl-tooltip.hidden { display: none; }
+
+#tl-tt-type {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+/* type colour matches segment colour */
+#tl-tooltip.tt-work  #tl-tt-type { color: #00aaff; }
+#tl-tooltip.tt-break #tl-tt-type { color: #ff3b30; }
+#tl-tooltip.tt-lunch #tl-tt-type { color: #00e676; }
+
+#tl-tt-range {
+  font-size: 10px;
+  font-family: 'Courier New', monospace;
+  color: rgba(255,255,255,0.75);
+}
+
+#tl-tt-dur {
+  font-size: 9px;
+  color: rgba(255,255,255,0.38);
+}
+
+/* ── Pointer (▼ needle) ─────────────────────────────────── */
+#timeline-pointer {
+  position: absolute;
+  top: -3px;
+  width: 2px;
+  height: calc(100% + 6px);
+  background: #ffffff;
+  border-radius: 1px;
+  transform: translateX(-50%);
+  box-shadow: 0 0 4px rgba(255,255,255,0.9), 0 0 10px rgba(255,255,255,0.4);
+  z-index: 10;
+  display: none;
+  pointer-events: none;
+}
+
+/* ── Legend ─────────────────────────────────────────────── */
+#timeline-legend {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  justify-content: center;
+}
+
+.legend-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.legend-work  { background: #00aaff; }
+.legend-break { background: #ff3b30; }
+.legend-lunch { background: #00e676; }
+
+.legend-text {
+  font-size: 8px;
+  color: rgba(255,255,255,0.28);
+  letter-spacing: 0.5px;
+  margin-right: 6px;
+}
+
+/* ── Resize handle ──────────────────────────────────────── */
+#resize-handle {
+  position: fixed;
+  bottom: 4px;
+  right: 5px;
+  width: 16px;
+  height: 16px;
+  font-size: 14px;
+  line-height: 16px;
+  text-align: center;
+  color: rgba(255,255,255,0.22);
+  cursor: se-resize;
+  z-index: 20;
+  -webkit-app-region: no-drag;
+  transition: color 0.15s;
+}
+
+#resize-handle:hover {
+  color: rgba(255,255,255,0.6);
+}
+
+/* ════════════════════════════════════════════════════════════
+   SETUP OVERLAY
+   ════════════════════════════════════════════════════════════ */
+
+#setup-overlay {
+  /* covers the entire widget viewport */
+  position: fixed;
+  inset: 0;
+  background: rgba(6, 6, 10, 0.96);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  -webkit-app-region: drag; /* allow dragging overlay too */
+}
+
+/* hidden utility — used on steps and the whole overlay */
+.hidden, #setup-overlay.hidden {
+  display: none !important;
+}
+
+#setup-card {
+  width: 100%;
+  padding: 14px 18px 12px;
+  -webkit-app-region: no-drag;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ── Header ─────────────────────────────────────────────── */
+#setup-header {
+  text-align: center;
+  margin-bottom: 2px;
+}
+
+#setup-icon {
+  font-size: 24px;
+  display: block;
+  margin-bottom: 4px;
+}
+
+#setup-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: 0.5px;
+}
+
+#setup-sub {
+  font-size: 10px;
+  color: rgba(255,255,255,0.38);
+  margin-top: 3px;
+  line-height: 1.5;
+}
+
+/* ── Step indicator dots ─────────────────────────────────── */
+#setup-steps {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  margin: 2px 0 4px;
+}
+
+.step-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.18);
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+
+.step-dot.active {
+  background: #00aaff;
+}
+
+.step-dot.done {
+  background: rgba(0, 170, 255, 0.45);
+}
+
+.step-line {
+  width: 28px;
+  height: 2px;
+  background: rgba(255,255,255,0.12);
+  flex-shrink: 0;
+}
+
+/* ── Step containers ─────────────────────────────────────── */
+.setup-step {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.step-heading {
+  font-size: 9.5px;
+  color: rgba(255,255,255,0.3);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  margin-bottom: 1px;
+}
+
+/* ── Field rows ─────────────────────────────────────────── */
+.setup-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.setup-field label {
+  font-size: 11px;
+  color: rgba(255,255,255,0.55);
+  flex: 1;
+  white-space: nowrap;
+}
+
+.setup-field input[type="time"] {
+  -webkit-app-region: no-drag;
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 6px;
+  color: #ffffff;
+  font-size: 12px;
+  font-family: 'Courier New', monospace;
+  padding: 4px 8px;
+  width: 90px;
+  text-align: center;
+  outline: none;
+  transition: border-color 0.15s, background 0.15s;
+  cursor: text;
+}
+
+.setup-field input[type="time"]:focus {
+  border-color: #00aaff;
+  background: rgba(0, 170, 255, 0.08);
+}
+
+/* ── Hint text ──────────────────────────────────────────── */
+.setup-hint {
+  font-size: 9.5px;
+  color: rgba(255,255,255,0.28);
+  text-align: center;
+  line-height: 1.5;
+  border-top: 1px solid rgba(255,255,255,0.07);
+  padding-top: 6px;
+}
+
+/* ── Schedule preview (step 2) ───────────────────────────── */
+#setup-preview {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.09);
+  border-radius: 7px;
+  padding: 7px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.preview-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.preview-label {
+  font-size: 10px;
+  color: rgba(255,255,255,0.38);
+}
+
+.preview-val {
+  font-size: 10px;
+  font-family: 'Courier New', monospace;
+  color: rgba(255,255,255,0.7);
+}
+
+.preview-cycles .preview-label,
+.preview-cycles .preview-val {
+  color: #00aaff;
+  font-weight: 700;
+}
+
+/* ── Action buttons ─────────────────────────────────────── */
+.setup-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 2px;
+}
+
+.setup-btn {
+  -webkit-app-region: no-drag;
+  border: none;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 5px 14px;
+  cursor: pointer;
+  transition: opacity 0.15s, background 0.15s;
+}
+
+.setup-btn-ghost {
+  background: rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.55);
+}
+
+.setup-btn-ghost:hover {
+  background: rgba(255,255,255,0.14);
+  color: #fff;
+}
+
+.setup-btn-primary {
+  background: #00aaff;
+  color: #000;
+}
+
+.setup-btn-primary:hover {
+  opacity: 0.88;
+}
+
+/* On first run, hide Cancel (nothing to go back to) */
+#setup-overlay.first-run #btn-setup-cancel {
+  display: none;
+}
+
+/* ── Validation error shake ─────────────────────────────── */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%       { transform: translateX(-6px); }
+  40%       { transform: translateX(6px); }
+  60%       { transform: translateX(-4px); }
+  80%       { transform: translateX(4px); }
+}
+
+.setup-field.error input[type="time"] {
+  border-color: #ff3b30;
+  background: rgba(255, 59, 48, 0.10);
+  animation: shake 0.35s ease;
+}
+
+.setup-field.error label {
+  color: #ff3b30;
+}

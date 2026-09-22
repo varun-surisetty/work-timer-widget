@@ -1,0 +1,59 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"   # triggers on v1.0.0, v1.1.0, etc.
+
+permissions:
+  contents: write   # needed to create GitHub Releases
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            script: build:win
+            artifact: "dist/*.exe"
+          - os: macos-latest
+            script: build:mac
+            artifact: "dist/*.dmg"
+          - os: ubuntu-latest
+            script: build:linux
+            artifact: "dist/*.AppImage dist/*.deb"
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Linux needs a display server for Electron
+      - name: Install Linux deps
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y libgconf-2-4 libatk1.0-0 libatk-bridge2.0-0 \
+            libgdk-pixbuf2.0-0 libgtk-3-0 libnss3 libxss1 libasound2
+
+      - name: Build installer
+        run: npm run ${{ matrix.script }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload artifacts to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ matrix.artifact }}
+          fail_on_unmatched_files: false

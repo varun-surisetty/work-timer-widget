@@ -1,0 +1,72 @@
+{
+  "name": "work-timer-widget",
+  "version": "1.1.0",
+  "description": "Always-on-top work/break cycle timer widget with timeline view — built with Electron",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "build:win": "electron-builder --win",
+    "build:mac": "electron-builder --mac",
+    "build:linux": "electron-builder --linux",
+    "build:all": "electron-builder --win --mac --linux"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/YOUR_USERNAME/work-timer-widget.git"
+  },
+  "keywords": [
+    "electron",
+    "timer",
+    "pomodoro",
+    "productivity",
+    "widget",
+    "always-on-top",
+    "work-timer",
+    "focus"
+  ],
+  "author": "",
+  "license": "MIT",
+  "build": {
+    "appId": "com.worktimer.widget",
+    "productName": "Work Timer",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        { "target": "nsis", "arch": ["x64", "ia32"] }
+      ],
+      "icon": "src/icon.ico"
+    },
+    "mac": {
+      "target": [
+        { "target": "dmg", "arch": ["x64", "arm64"] }
+      ],
+      "icon": "src/icon.icns",
+      "category": "public.app-category.productivity"
+    },
+    "linux": {
+      "target": [
+        { "target": "AppImage", "arch": ["x64"] },
+        { "target": "deb",      "arch": ["x64"] }
+      ],
+      "icon": "src/icon.icns",
+      "category": "Utility"
+    },
+    "nsis": {
+      "oneClick": true,
+      "runAfterFinish": true
+    }
+  },
+  "devDependencies": {
+    "electron": "^29.0.0",
+    "electron-builder": "^24.0.0"
+  },
+  "allowScripts": {
+    "electron@29.4.6": true
+  }
+}

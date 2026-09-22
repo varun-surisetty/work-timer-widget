@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Work Timer</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- ══════════════════════════════════════════════════════════
+       SETUP OVERLAY  — shown on first launch or via ⚙ button
+       ══════════════════════════════════════════════════════════ -->
+  <div id="setup-overlay">
+    <div id="setup-card">
+
+      <!-- ── Shared header ───────────────────────────── -->
+      <div id="setup-header">
+        <span id="setup-icon">⏱</span>
+        <h2 id="setup-title">Work Timer Setup</h2>
+        <p id="setup-sub">Set your workday schedule. You can change this any time via ⚙.</p>
+      </div>
+
+      <!-- ── Step indicator ──────────────────────────── -->
+      <div id="setup-steps">
+        <span class="step-dot active" data-step="1"></span>
+        <span class="step-line"></span>
+        <span class="step-dot" data-step="2"></span>
+      </div>
+
+      <!-- ══════════════════════════════════════════════
+           STEP 1 — Morning & Lunch times
+           ══════════════════════════════════════════════ -->
+      <div id="setup-step-1" class="setup-step">
+        <p class="step-heading">Step 1 of 2 — Work sessions</p>
+
+        <div class="setup-field" id="field-morning">
+          <label for="inp-morning-start">Morning start</label>
+          <input id="inp-morning-start" type="time" value="08:30" />
+        </div>
+
+        <div class="setup-field" id="field-lunch-start">
+          <label for="inp-lunch-start">Lunch start</label>
+          <input id="inp-lunch-start" type="time" value="12:30" />
+        </div>
+
+        <div class="setup-field" id="field-lunch-end">
+          <label for="inp-lunch-end">Lunch end</label>
+          <input id="inp-lunch-end" type="time" value="13:30" />
+        </div>
+
+        <p class="setup-hint">Morning session = Morning start → Lunch start.</p>
+
+        <div class="setup-actions">
+          <button id="btn-setup-cancel" class="setup-btn setup-btn-ghost">Cancel</button>
+          <button id="btn-step1-next"   class="setup-btn setup-btn-primary">Next →</button>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════
+           STEP 2 — Day end + preview
+           ══════════════════════════════════════════════ -->
+      <div id="setup-step-2" class="setup-step hidden">
+        <p class="step-heading">Step 2 of 2 — Day end</p>
+
+        <div class="setup-field" id="field-day-end">
+          <label for="inp-day-end">Day end</label>
+          <input id="inp-day-end" type="time" value="17:30" />
+        </div>
+
+        <!-- Live schedule preview -->
+        <div id="setup-preview">
+          <div class="preview-row">
+            <span class="preview-label">Morning</span>
+            <span id="prev-morning" class="preview-val">—</span>
+          </div>
+          <div class="preview-row">
+            <span class="preview-label">Lunch</span>
+            <span id="prev-lunch" class="preview-val">—</span>
+          </div>
+          <div class="preview-row">
+            <span class="preview-label">Afternoon</span>
+            <span id="prev-afternoon" class="preview-val">—</span>
+          </div>
+          <div class="preview-row preview-cycles">
+            <span class="preview-label">Cycles/day</span>
+            <span id="prev-cycles" class="preview-val">—</span>
+          </div>
+        </div>
+
+        <div class="setup-actions">
+          <button id="btn-step2-back" class="setup-btn setup-btn-ghost">← Back</button>
+          <button id="btn-setup-save" class="setup-btn setup-btn-primary">Save &amp; Start</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════
+       MAIN WIDGET
+       ══════════════════════════════════════════════════════════ -->
+
+  <!-- Drag handle bar -->
+  <div id="drag-bar">
+    <span id="drag-label">⠿ Work Timer</span>
+    <button id="btn-settings" title="Settings">⚙</button>
+    <button id="btn-hide"     title="Hide">—</button>
+    <button id="btn-close"    title="Quit">✕</button>
+  </div>
+
+  <!-- Status label -->
+  <div id="status-label">Loading...</div>
+
+  <!-- Digital display -->
+  <div id="display-wrap">
+    <div id="timer-display">--:--</div>
+  </div>
+
+  <!-- Phase bar: shows segment name -->
+  <div id="phase-bar">
+    <span id="phase-label"></span>
+  </div>
+
+  <!-- Day Timeline bar -->
+  <div id="timeline-wrap">
+    <div id="timeline-label-row">
+      <!-- labels injected by JS so they match the saved schedule -->
+    </div>
+    <div id="timeline-bar">
+      <!-- segments injected by JS -->
+      <div id="timeline-pointer"></div>
+    </div>
+    <!-- custom hover tooltip — positioned by JS -->
+    <div id="tl-tooltip" class="hidden">
+      <span id="tl-tt-type"></span>
+      <span id="tl-tt-range"></span>
+      <span id="tl-tt-dur"></span>
+    </div>
+    <div id="timeline-legend">
+      <span class="legend-dot legend-work"></span><span class="legend-text">Focus</span>
+      <span class="legend-dot legend-break"></span><span class="legend-text">Break</span>
+      <span class="legend-dot legend-lunch"></span><span class="legend-text">Lunch</span>
+    </div>
+  </div>
+
+  <!-- Resize handle (bottom-right corner) -->
+  <div id="resize-handle" title="Drag to resize">⌟</div>
+
+  <script src="timer.js"></script>
+</body>
+</html>
