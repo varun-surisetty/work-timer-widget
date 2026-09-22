@@ -463,6 +463,46 @@ body.phase-green .tl-lunch { opacity: 1; }
   margin-bottom: 1px;
 }
 
+/* ── Step 0 — saved-schedule confirmation ────────────────── */
+#step0-desc {
+  font-size: 10px;
+  color: rgba(255,255,255,0.4);
+  margin-bottom: 2px;
+}
+
+#step0-saved {
+  background: rgba(0, 170, 255, 0.06);
+  border: 1px solid rgba(0, 170, 255, 0.18);
+  border-radius: 8px;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.s0-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.s0-label {
+  font-size: 10px;
+  color: rgba(255,255,255,0.38);
+}
+
+.s0-val {
+  font-size: 10px;
+  font-family: 'Courier New', monospace;
+  color: rgba(255,255,255,0.75);
+}
+
+.s0-row-cycles .s0-label,
+.s0-row-cycles .s0-val {
+  color: #00aaff;
+  font-weight: 700;
+}
+
 /* ── Field rows ─────────────────────────────────────────── */
 .setup-field {
   display: flex;

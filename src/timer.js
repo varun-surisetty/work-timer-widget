@@ -36,9 +36,7 @@ function secToTimeStr(sec) {
   return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
 }
 
-// ── Schedule (loaded from localStorage or defaults) ──────────────
-const SCHEDULE_KEY = 'wt_schedule_v1';
-
+// ── Schedule persistence (file-backed via IPC) ───────────────────
 const DEFAULT_SCHEDULE = {
   morningStart : '08:30',
   lunchStart   : '12:30',
@@ -46,16 +44,21 @@ const DEFAULT_SCHEDULE = {
   dayEnd       : '17:30',
 };
 
-function loadSchedule() {
-  try {
-    const raw = localStorage.getItem(SCHEDULE_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch (_) {}
-  return null;
+// Synchronous cache — populated once on startup via loadScheduleAsync()
+let _cachedSchedule = null;
+
+async function loadScheduleAsync() {
+  _cachedSchedule = await ipcRenderer.invoke('schedule-load');
+  return _cachedSchedule;
 }
 
-function saveSchedule(s) {
-  localStorage.setItem(SCHEDULE_KEY, JSON.stringify(s));
+function loadSchedule() {
+  return _cachedSchedule;
+}
+
+async function saveSchedule(s) {
+  _cachedSchedule = s;
+  await ipcRenderer.invoke('schedule-save', s);
 }
 
 /**
@@ -74,7 +77,8 @@ function buildBoundaries(s) {
 }
 
 // ── Active boundaries (mutated when schedule changes) ────────────
-let B = buildBoundaries(loadSchedule() || DEFAULT_SCHEDULE);
+// Starts with defaults; overwritten by initApp() once the file loads.
+let B = buildBoundaries(DEFAULT_SCHEDULE);
 
 // ── DOM refs ─────────────────────────────────────────────────────
 const display        = document.getElementById('timer-display');
@@ -90,6 +94,7 @@ const resizeHandle   = document.getElementById('resize-handle');
 
 // ── Setup overlay DOM refs ────────────────────────────────────────
 const setupOverlay   = document.getElementById('setup-overlay');
+const step0          = document.getElementById('setup-step-0');
 const step1          = document.getElementById('setup-step-1');
 const step2          = document.getElementById('setup-step-2');
 const stepDots       = document.querySelectorAll('.step-dot');
@@ -101,6 +106,8 @@ const btnSetupSave   = document.getElementById('btn-setup-save');
 const btnSetupCancel = document.getElementById('btn-setup-cancel');
 const btnStep1Next   = document.getElementById('btn-step1-next');
 const btnStep2Back   = document.getElementById('btn-step2-back');
+const btnS0Confirm   = document.getElementById('btn-s0-confirm');
+const btnS0Change    = document.getElementById('btn-s0-change');
 const fieldMorning   = document.getElementById('field-morning');
 const fieldLunchS    = document.getElementById('field-lunch-start');
 const fieldLunchE    = document.getElementById('field-lunch-end');
@@ -109,19 +116,45 @@ const prevMorning    = document.getElementById('prev-morning');
 const prevLunch      = document.getElementById('prev-lunch');
 const prevAfternoon  = document.getElementById('prev-afternoon');
 const prevCycles     = document.getElementById('prev-cycles');
+const s0Morning      = document.getElementById('s0-morning');
+const s0Lunch        = document.getElementById('s0-lunch');
+const s0Afternoon    = document.getElementById('s0-afternoon');
+const s0Cycles       = document.getElementById('s0-cycles');
 
 // ════════════════════════════════════════════════════════════════
-//  SETUP WIZARD — 2-step navigation
+//  SETUP WIZARD — step 0 (confirm) → step 1 → step 2
 // ════════════════════════════════════════════════════════════════
 
-/** Show step 1 or step 2 and update the dot indicators. */
+/** Fill the step-0 saved-schedule summary from a schedule object. */
+function fillStep0Summary(s) {
+  const ms = timeStrToSec(s.morningStart);
+  const ls = timeStrToSec(s.lunchStart);
+  const le = timeStrToSec(s.lunchEnd);
+  const de = timeStrToSec(s.dayEnd);
+  const totalCycles = Math.floor((ls - ms) / CYCLE_TOTAL) +
+                      Math.floor((de - le) / CYCLE_TOTAL);
+  s0Morning.textContent   = `${s.morningStart} – ${s.lunchStart}`;
+  s0Lunch.textContent     = `${s.lunchStart} – ${s.lunchEnd}`;
+  s0Afternoon.textContent = `${s.lunchEnd} – ${s.dayEnd}`;
+  s0Cycles.textContent    = `${totalCycles} × 60 min`;
+}
+
+/** Show step 0, 1, or 2 and keep dot indicators in sync. */
 function showStep(n) {
+  step0.classList.toggle('hidden', n !== 0);
   step1.classList.toggle('hidden', n !== 1);
   step2.classList.toggle('hidden', n !== 2);
+  // Dots track steps 1 and 2 only (step 0 is pre-wizard)
   stepDots.forEach((dot, i) => {
     dot.classList.toggle('active', i === n - 1);
     dot.classList.toggle('done',   i < n - 1);
   });
+  if (n === 0) {
+    // Hide the step-dot row during the confirm screen — not relevant there
+    document.getElementById('setup-steps').style.visibility = 'hidden';
+  } else {
+    document.getElementById('setup-steps').style.visibility = 'visible';
+  }
   if (n === 2) updatePreview();
 }
 
@@ -138,24 +171,25 @@ function updatePreview() {
     return;
   }
 
-  const mornSessions  = Math.floor((ls - ms) / CYCLE_TOTAL);
-  const aftSessions   = Math.floor((de - le) / CYCLE_TOTAL);
-  const totalCycles   = mornSessions + aftSessions;
-
+  const mornCycles = Math.floor((ls - ms) / CYCLE_TOTAL);
+  const aftCycles  = Math.floor((de - le) / CYCLE_TOTAL);
   prevMorning.textContent   = `${secToTimeStr(ms)} – ${secToTimeStr(ls)}`;
   prevLunch.textContent     = `${secToTimeStr(ls)} – ${secToTimeStr(le)}`;
   prevAfternoon.textContent = `${secToTimeStr(le)} – ${secToTimeStr(de)}`;
-  prevCycles.textContent    = `${totalCycles} × 60 min`;
+  prevCycles.textContent    = `${mornCycles + aftCycles} × 60 min`;
 }
 
-function openSetup(isFirstRun) {
-  const s = loadSchedule() || DEFAULT_SCHEDULE;
+/** Pre-fill the time inputs from a schedule object. */
+function fillInputs(s) {
   inpMorning.value    = s.morningStart;
   inpLunchStart.value = s.lunchStart;
   inpLunchEnd.value   = s.lunchEnd;
   inpDayEnd.value     = s.dayEnd;
+}
 
-  setupOverlay.classList.toggle('first-run', isFirstRun);
+function openSetup() {
+  const s = loadSchedule() || DEFAULT_SCHEDULE;
+  fillInputs(s);
   setupOverlay.classList.remove('hidden');
   showStep(1);
 }
@@ -164,10 +198,10 @@ function closeSetup() {
   setupOverlay.classList.add('hidden');
 }
 
-/** Mark a field invalid with shake animation (independent — does NOT return false). */
+/** Mark a field invalid with shake animation. */
 function markError(fieldEl) {
   fieldEl.classList.remove('error');
-  void fieldEl.offsetWidth;  // force reflow so animation restarts
+  void fieldEl.offsetWidth;
   fieldEl.classList.add('error');
 }
 
@@ -175,30 +209,37 @@ function clearErrors(...fields) {
   fields.forEach(f => f.classList.remove('error'));
 }
 
-/** Parse a time input value; returns NaN if blank or malformed. */
+/** Parse a time input; returns NaN if blank or malformed. */
 function parseTime(inp) {
   const v = inp.value.trim();
   if (!v || !v.includes(':')) return NaN;
   return timeStrToSec(v);
 }
 
+// ── Step 0 → Confirm (use saved schedule as-is) ──────────────────
+btnS0Confirm.addEventListener('click', () => {
+  // Schedule is already loaded into B by initApp(); just close.
+  closeSetup();
+});
+
+// ── Step 0 → Change (open the wizard prefilled with saved values) ─
+btnS0Change.addEventListener('click', () => {
+  const s = loadSchedule() || DEFAULT_SCHEDULE;
+  fillInputs(s);
+  showStep(1);
+});
+
 // ── Step 1 → Next ────────────────────────────────────────────────
 btnStep1Next.addEventListener('click', () => {
   clearErrors(fieldMorning, fieldLunchS, fieldLunchE);
-
   const ms = parseTime(inpMorning);
   const ls = parseTime(inpLunchStart);
   const le = parseTime(inpLunchEnd);
-
   let ok = true;
-
   if (isNaN(ms)) { markError(fieldMorning); ok = false; }
   if (isNaN(ls) || (!isNaN(ms) && ls <= ms)) { markError(fieldLunchS); ok = false; }
   if (isNaN(le) || (!isNaN(ls) && le <= ls)) { markError(fieldLunchE); ok = false; }
-
-  // Morning session must be at least one full cycle
   if (ok && (ls - ms) < CYCLE_TOTAL) { markError(fieldLunchS); ok = false; }
-
   if (!ok) return;
   showStep(2);
 });
@@ -210,16 +251,13 @@ btnStep2Back.addEventListener('click', () => {
 });
 
 // ── Step 2 → Save ────────────────────────────────────────────────
-btnSetupSave.addEventListener('click', () => {
+btnSetupSave.addEventListener('click', async () => {
   clearErrors(fieldDayEnd);
-
   const le = parseTime(inpLunchEnd);
   const de = parseTime(inpDayEnd);
-
   let ok = true;
   if (isNaN(de) || (!isNaN(le) && de <= le)) { markError(fieldDayEnd); ok = false; }
   if (ok && (de - le) < CYCLE_TOTAL)          { markError(fieldDayEnd); ok = false; }
-
   if (!ok) return;
 
   const newSchedule = {
@@ -229,26 +267,32 @@ btnSetupSave.addEventListener('click', () => {
     dayEnd       : inpDayEnd.value,
   };
 
-  saveSchedule(newSchedule);
+  await saveSchedule(newSchedule);
   B = buildBoundaries(newSchedule);
   lastPhase = null;
   buildTimeline();
   closeSetup();
 });
 
-// ── Cancel (returns to timer without saving) ─────────────────────
+// ── Cancel (returns to timer, only shown when schedule exists) ────
 btnSetupCancel.addEventListener('click', closeSetup);
 
 // ── Gear button ──────────────────────────────────────────────────
-btnSettings.addEventListener('click', () => openSetup(false));
+btnSettings.addEventListener('click', () => {
+  const s = loadSchedule();
+  if (s) {
+    // Has saved schedule → go straight to the confirm/change step
+    fillStep0Summary(s);
+    fillInputs(s);
+    setupOverlay.classList.remove('hidden');
+    showStep(0);
+  } else {
+    openSetup();
+  }
+});
 
 // ── Live preview updates as user types on step 2 ─────────────────
 inpDayEnd.addEventListener('input', updatePreview);
-
-// ── Show setup on first launch ────────────────────────────────────
-if (!loadSchedule()) {
-  openSetup(true);
-}
 
 // ════════════════════════════════════════════════════════════════
 //  DRAG + RESIZE
@@ -516,8 +560,6 @@ function updatePointer(nowSec) {
   timelinePtr.style.display = 'block';
 }
 
-// Build timeline on load (uses whatever B is set to)
-buildTimeline();
 
 // ════════════════════════════════════════════════════════════════
 //  MAIN TICK
@@ -578,5 +620,33 @@ function tick() {
   }
 }
 
-tick();
-setInterval(tick, 1000);
+// ════════════════════════════════════════════════════════════════
+//  BOOTSTRAP — async startup
+// ════════════════════════════════════════════════════════════════
+
+async function initApp() {
+  const saved = await loadScheduleAsync(); // reads from userData/schedule.json
+
+  if (saved) {
+    // Apply the saved schedule immediately so the timer is live
+    B = buildBoundaries(saved);
+    buildTimeline();
+
+    // Show the "continue?" confirmation screen
+    fillStep0Summary(saved);
+    fillInputs(saved);
+    setupOverlay.classList.remove('hidden');
+    showStep(0);
+  } else {
+    // First ever launch — no saved data, go straight to the wizard
+    buildTimeline();
+    setupOverlay.classList.remove('hidden');
+    showStep(1);
+  }
+
+  // Start the ticker regardless — tick() skips rendering while overlay is open
+  tick();
+  setInterval(tick, 1000);
+}
+
+initApp();

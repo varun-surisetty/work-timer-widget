@@ -1,5 +1,6 @@
 const { app, BrowserWindow, screen, ipcMain, Tray, Menu, nativeImage } = require('electron');
 const path = require('path');
+const fs   = require('fs');
 
 let mainWindow;
 let tray;
@@ -126,6 +127,29 @@ ipcMain.on('move-window', (_event, { dx, dy }) => {
 
 // ── IPC: quit app ────────────────────────────────────────────────
 ipcMain.on('quit-app', () => app.quit());
+
+// ── IPC: schedule persistence (userData JSON file) ───────────────
+function scheduleFilePath() {
+  return path.join(app.getPath('userData'), 'schedule.json');
+}
+
+ipcMain.handle('schedule-load', () => {
+  try {
+    const raw = fs.readFileSync(scheduleFilePath(), 'utf8');
+    return JSON.parse(raw);
+  } catch (_) {
+    return null;
+  }
+});
+
+ipcMain.handle('schedule-save', (_event, schedule) => {
+  try {
+    fs.writeFileSync(scheduleFilePath(), JSON.stringify(schedule, null, 2), 'utf8');
+    return true;
+  } catch (_) {
+    return false;
+  }
+});
 
 // ── IPC: hide window ─────────────────────────────────────────────
 ipcMain.on('hide-window', () => {

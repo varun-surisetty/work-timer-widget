@@ -28,6 +28,40 @@
       </div>
 
       <!-- ══════════════════════════════════════════════
+           STEP 0 — Continue with saved schedule?
+           (only shown when a saved schedule exists)
+           ══════════════════════════════════════════════ -->
+      <div id="setup-step-0" class="setup-step hidden">
+        <p class="step-heading">Welcome back</p>
+
+        <p id="step0-desc">Your last schedule:</p>
+
+        <div id="step0-saved">
+          <div class="s0-row">
+            <span class="s0-label">Morning</span>
+            <span id="s0-morning" class="s0-val">—</span>
+          </div>
+          <div class="s0-row">
+            <span class="s0-label">Lunch</span>
+            <span id="s0-lunch" class="s0-val">—</span>
+          </div>
+          <div class="s0-row">
+            <span class="s0-label">Afternoon</span>
+            <span id="s0-afternoon" class="s0-val">—</span>
+          </div>
+          <div class="s0-row s0-row-cycles">
+            <span class="s0-label">Cycles/day</span>
+            <span id="s0-cycles" class="s0-val">—</span>
+          </div>
+        </div>
+
+        <div class="setup-actions">
+          <button id="btn-s0-change" class="setup-btn setup-btn-ghost">Change…</button>
+          <button id="btn-s0-confirm" class="setup-btn setup-btn-primary">Continue ✓</button>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════
            STEP 1 — Morning & Lunch times
            ══════════════════════════════════════════════ -->
       <div id="setup-step-1" class="setup-step">
